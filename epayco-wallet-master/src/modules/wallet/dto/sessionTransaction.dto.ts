@@ -1,6 +1,4 @@
-import { IsDate, IsNumber, IsString } from 'class-validator';
-import { ClientDto } from 'src/client/dto/client.dto';
-import { TransactionDto } from './transaction.dto';
+import { ClientDto } from "src/modules/client/dto/client.dto";
 
 export class SessionTransactionDto {
   amount: number;
