@@ -16,6 +16,7 @@ import { envs } from 'src/config';
 import { MailerService } from '@nestjs-modules/mailer';
 import { TransactionDto } from './dto/transaction.dto';
 import { ConfirmPurchaseDto } from './dto/confirmPurchase.dto';
+import { CheckBalanceDto } from './dto/checkBalance.dto';
 
 @Injectable()
 export class WalletService {
@@ -303,4 +304,34 @@ export class WalletService {
     }
   }
   
+  async checkBalance(
+    body: CheckBalanceDto,
+  ): Promise<ResponseDto<{ balance: number }> | ErrorResponseDto> {
+    try {
+      this.logger.error(`WALLET_SERVICE::CHECK_BALANCE::START`);
+      const wallet = await this.walletRepository.findOneBy({
+        client: {
+          phone: body.phone,
+          documentNumber: body.documentNumber,
+        },
+      });
+      if (!wallet) {
+        return this.responseBuilder.buildErrorResponse(
+          HttpStatus.NOT_FOUND,
+          'Wallet not found. Please check the phone and document number.',
+        );
+      }
+
+      return this.responseBuilder.buildResponse(
+        wallet.balance,
+        `Balance checked successfully`,
+      );
+    } catch (error) {
+      this.logger.error(`WALLET_SERVICE::CHECK_BALANCE::ERROR::${error}`);
+      return this.responseBuilder.buildErrorResponse(
+        HttpStatus.BAD_REQUEST,
+        'Error adding funds',
+      );
+    }
+  }
 }
