@@ -9,6 +9,8 @@ import { ClientModule } from './client/client.module';
 import { envs } from './config';
 import { EmailModule } from './email/email.module';
 import { WalletModule } from './wallet/wallet.module';
+import { WalletModule } from './mdoules/wallet/wallet.module';
+import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
   imports: [
