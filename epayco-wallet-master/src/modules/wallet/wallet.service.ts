@@ -8,7 +8,12 @@ import { Transaction } from 'src/entities/transaction.entity';
 import { AddFundsDto } from './dto/addFunds.dto';
 import { ResponseDto } from 'src/dto/response.dto';
 import { ErrorResponseDto } from 'src/dto/errorResponse.dto';
-import { generateToken } from 'src/utils/tokenSession';
+import { generateSessionId, generateToken } from 'src/utils/tokenSession';
+import { SessionTransaction } from 'src/entities/session-transaction.entity';
+import { SessionTransactionDto } from './dto/sessionTransaction.dto';
+import { RegisterPurchaseDto } from './dto/registerPurchase.dto';
+import { envs } from 'src/config';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class WalletService {
@@ -23,6 +28,11 @@ export class WalletService {
 
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+
+    @InjectRepository(SessionTransaction)
+    private readonly sessionTransactionRepository: Repository<SessionTransaction>,
+
+    private readonly mailerService: MailerService,
   ) {}
 
   async addFunds(
@@ -86,6 +96,90 @@ export class WalletService {
       return this.responseBuilder.buildErrorResponse(
         HttpStatus.BAD_REQUEST,
         'Error adding funds',
+      );
+    }
+
+    
+  }
+
+  async registerPurchase(body: RegisterPurchaseDto) {
+    try {
+      const wallet = await this.walletRepository.findOne({
+        where: {
+          client: {
+            phone: body.phone,
+            documentNumber: body.documentNumber,
+          },
+        },
+        relations: ['client'],
+      });
+      if (!wallet) {
+        return this.responseBuilder.buildErrorResponse(
+          HttpStatus.NOT_FOUND,
+          'Wallet not found',
+        );
+      }
+
+      // Check if the wallet has enough funds
+      if (wallet.balance < body.amount) {
+        return this.responseBuilder.buildErrorResponse(
+          HttpStatus.BAD_REQUEST,
+          'Insufficient balance',
+        );
+      }
+
+      // generate token and session ID
+      const token = generateToken();
+      const idSession = generateSessionId();
+
+      // Create a session transaction to store all the information
+      // related to the transaction.
+      const sessionTransaction = this.sessionTransactionRepository.create({
+        amount: body.amount,
+        documentNumber: body.documentNumber,
+        status: 'PENDING',
+        sessionStatus: 'OPEN',
+        token,
+        idSession,
+        client: wallet.client,
+      });
+
+      // Send email to client with token and session ID
+      await this.mailerService.sendMail({
+        from: envs.emailAddress,
+        to: [wallet.client.email],
+        subject: 'Register Purchase',
+        template: 'confirm-purchase',
+        context: {
+          name: wallet.client.name,
+          sessionId: idSession,
+          token: token,
+        },
+      });
+
+      // Create the session transaction once
+      // the information is validated
+      const {
+        id,
+        documentNumber,
+        idSession: sessionId,
+        token: sessionToken,
+        transaction,
+        ...createdSessionTransaction
+      } = await this.sessionTransactionRepository.save(sessionTransaction);
+
+      const sessionTransactionDto: SessionTransactionDto =
+        createdSessionTransaction;
+
+      return this.responseBuilder.buildResponse(
+        sessionTransactionDto,
+        'Purchase registered successfully',
+      );
+    } catch (error) {
+      this.logger.error(`WALLET_SERVICE::REGISTER_CLIENT::ERROR::${error}`);
+      return this.responseBuilder.buildErrorResponse(
+        HttpStatus.BAD_REQUEST,
+        'Error registering purchase',
       );
     }
   }
