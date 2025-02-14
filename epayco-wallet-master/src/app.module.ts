@@ -3,13 +3,8 @@ import { EjsAdapter } from '@nestjs-modules/mailer/dist/adapters/ejs.adapter';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ClientModule } from './client/client.module';
 import { envs } from './config';
-import { EmailModule } from './email/email.module';
-import { WalletModule } from './wallet/wallet.module';
-import { WalletModule } from './mdoules/wallet/wallet.module';
+import { ClientModule } from './modules/client/client.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 
 @Module({
@@ -47,9 +42,8 @@ import { WalletModule } from './modules/wallet/wallet.module';
     }),
     ClientModule,
     WalletModule,
-    EmailModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
