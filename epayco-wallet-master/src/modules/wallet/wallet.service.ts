@@ -14,6 +14,8 @@ import { SessionTransactionDto } from './dto/sessionTransaction.dto';
 import { RegisterPurchaseDto } from './dto/registerPurchase.dto';
 import { envs } from 'src/config';
 import { MailerService } from '@nestjs-modules/mailer';
+import { TransactionDto } from './dto/transaction.dto';
+import { ConfirmPurchaseDto } from './dto/confirmPurchase.dto';
 
 @Injectable()
 export class WalletService {
@@ -183,4 +185,122 @@ export class WalletService {
       );
     }
   }
+
+  async confirmPurchase(body: ConfirmPurchaseDto) {
+    try {
+      this.logger.error(`WALLET_SERVICE::CONFIRM_PURCHASE::START`);
+
+      // Find if the session transaction exists based on the token
+      // and the session ID provided by the client.
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::FIND_SESSION_TRANSACTION::START`,
+      );
+      const session = await this.sessionTransactionRepository.findOne({
+        where: {
+          idSession: body.sessionId,
+          sessionStatus: 'OPEN',
+        },
+        relations: ['client'],
+      });
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::FIND_SESSION_TRANSACTION::FINISH`,
+      );
+
+      // Validate if token and session are valid
+      if (!session || body.token !== session.token) {
+        return this.responseBuilder.buildErrorResponse(
+          HttpStatus.NOT_FOUND,
+          'Wallet not found. Please verify your session and token are correct',
+        );
+      }
+
+      const wallet = await this.walletRepository.findOne({
+        where: {
+          client: {
+            phone: session.client.phone,
+            documentNumber: session.client.documentNumber,
+          },
+        },
+        relations: ['client'],
+      });
+      if (!wallet) {
+        return this.responseBuilder.buildErrorResponse(
+          HttpStatus.NOT_FOUND,
+          'Wallet not found',
+        );
+      }
+
+      this.logger.log('SESSION', wallet);
+
+      // Let's create a Transaction now we now the session transaction is
+      // okay and everything is validated.
+      const transaction = this.transactionRepository.create({
+        amount: session.amount,
+        client: session.client,
+        documentNumber: session.documentNumber,
+        sessionTransaction: session,
+        type: 'PURCHASE', // Add enum
+        reference: session.idSession,
+      });
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::CREATE_TRANSACTION::START`,
+      );
+      const createdTransaction =
+        await this.transactionRepository.save(transaction);
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::CREATE_TRANSACTION::FINISH`,
+      );
+
+      // Once the wallet's funds were check, let's
+      // withdraw the funds from client's wallet
+      wallet!.balance -= session.amount;
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::UPDATE_WALLET_FUNDS::START`,
+      );
+      await this.walletRepository.update(wallet!.id, wallet!);
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::UPDATE_WALLET_FUNDS::FINISH`,
+      );
+
+      // Update the session transaction status's to
+      // mark it as CONFIRMED and CLOSED.
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::UPDATE_SESSION_TRANSACTION::START`,
+      );
+      const updatedSessionTransaction =
+        await this.sessionTransactionRepository.update(
+          { idSession: body.sessionId },
+          {
+            status: 'CONFIRMED',
+            updatedAt: new Date(),
+            sessionStatus: 'CLOSED',
+          },
+        );
+      this.logger.debug(
+        `WALLET_SERVICE::CONFIRM_PURCHASE::UPDATE_SESSION_TRANSACTION::FINISH`,
+      );
+
+      this.logger.debug(`CONFIRM_PURCHASE::SERVICE::SUCCESS`);
+
+      const transactionDto: TransactionDto = {
+        amount: createdTransaction.amount,
+        client: createdTransaction.client,
+        reference: createdTransaction.reference,
+        createdAt: createdTransaction.createdAt,
+        type: createdTransaction.type,
+        sessionTransaction: createdTransaction.sessionTransaction,
+      };
+      return this.responseBuilder.buildResponse(
+        transactionDto,
+        'Purchase confirmed successfully',
+      );
+    } catch (err) {
+      this.logger.error(`WALLET_SERVICE::CONFIRM_PURCHASE::ERROR::${err}`);
+      return this.responseBuilder.buildErrorResponse(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Error confirming purchase',
+      );
+    }
+  }
+  
 }
