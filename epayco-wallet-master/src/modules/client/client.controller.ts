@@ -1,4 +1,4 @@
-import { Controller, Logger } from '@nestjs/common';
+import { Controller, HttpException, Logger } from '@nestjs/common';
 import { ClientService } from './client.service';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { RegisterClientDTO } from './dto/registerClient.dto';
@@ -15,7 +15,7 @@ export class ClientController {
   @MessagePattern('/client')
   async registerClient(
     @Payload() body: RegisterClientDTO,
-  ): Promise<ResponseDto<ClientDto> | ErrorResponseDto> {
+  ): Promise<ResponseDto<ClientDto> | HttpException> {
     this.logger.log('CLIENT_CONTROLLER::REGISTER_CLIENT::START');
     const response = await this.clientService.registerClient(body);
     this.logger.log('CLIENT_CONTROLLER::REGISTER_CLIENT::FINISH');

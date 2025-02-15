@@ -1,15 +1,14 @@
-import { Controller, Logger } from '@nestjs/common';
-import { WalletService } from './wallet.service';
+import { Controller, HttpException, Logger } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { AddFundsDto } from './dto/addFunds.dto';
-import { WalletDto } from './dto/wallet.dto';
 import { ResponseDto } from 'src/dto/response.dto';
-import { ErrorResponseDto } from 'src/dto/errorResponse.dto';
+import { AddFundsDto } from './dto/addFunds.dto';
+import { CheckBalanceDto } from './dto/checkBalance.dto';
 import { ConfirmPurchaseDto } from './dto/confirmPurchase.dto';
 import { RegisterPurchaseDto } from './dto/registerPurchase.dto';
 import { SessionTransactionDto } from './dto/sessionTransaction.dto';
 import { TransactionDto } from './dto/transaction.dto';
-import { CheckBalanceDto } from './dto/checkBalance.dto';
+import { WalletDto } from './dto/wallet.dto';
+import { WalletService } from './wallet.service';
 
 @Controller('wallet')
 export class WalletController {
@@ -21,7 +20,7 @@ export class WalletController {
   @MessagePattern('/funds/add')
   async addFunds(
     @Payload() body: AddFundsDto,
-  ): Promise<ResponseDto<WalletDto> | ErrorResponseDto> {
+  ): Promise<ResponseDto<WalletDto> | HttpException> {
     this.logger.debug('WALLET_CONTROLLER::ADD_FUNDS::START');
     const response = await this.walletService.addFunds(body);
     this.logger.debug('WALLET_CONTROLLER::ADD_FUNDS::FINISH');
@@ -31,7 +30,7 @@ export class WalletController {
   @MessagePattern('/purchase/register')
   async registerPurchase(
     @Payload() body: RegisterPurchaseDto,
-  ): Promise<ResponseDto<SessionTransactionDto> | ErrorResponseDto> {
+  ): Promise<ResponseDto<SessionTransactionDto> | HttpException> {
     this.logger.debug('WALLET_CONTROLLER::REGISTER_PURCHASE::START');
     const response = await this.walletService.registerPurchase(body);
     this.logger.debug('WALLET_CONTROLLER::REGISTER_PURCHASE::FINISH');
@@ -41,7 +40,7 @@ export class WalletController {
   @MessagePattern('/purchase/confirm')
   async confirmPurchase(
     @Payload() body: ConfirmPurchaseDto,
-  ): Promise<ResponseDto<TransactionDto> | ErrorResponseDto> {
+  ): Promise<ResponseDto<TransactionDto> | HttpException> {
     this.logger.debug('WALLET_CONTROLLER::REGISTER_PURCHASE::START');
     const response = await this.walletService.confirmPurchase(body);
     this.logger.debug('WALLET_CONTROLLER::REGISTER_PURCHASE::FINISH');

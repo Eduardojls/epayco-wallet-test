@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { RegisterClientDTO } from './dto/registerClient.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -23,7 +23,7 @@ export class ClientService {
 
   async registerClient(
     body: RegisterClientDTO,
-  ): Promise<ResponseDto<ClientDto> | ErrorResponseDto> {
+  ): Promise<ResponseDto<ClientDto> | HttpException> {
     try {
       const existingClient = await this.clientRepository.findOne({
         where: {
@@ -33,9 +33,9 @@ export class ClientService {
       });
 
       if (existingClient) {
-        return this.responseBuilder.buildErrorResponse(
-          HttpStatus.BAD_REQUEST,
+        return new HttpException(
           `Error, client with document ${body.documentNumber} and phone ${body.phone} already exists`,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -50,9 +50,9 @@ export class ClientService {
         'Client registered successfully',
       );
     } catch (error) {
-      return this.responseBuilder.buildErrorResponse(
-        HttpStatus.BAD_REQUEST,
+      return new HttpException(
         `Error registering client: ${error}`,
+        HttpStatus.BAD_REQUEST,
       );
     }
   }
