@@ -1,4 +1,4 @@
-import { Body, Controller, Logger, Post } from '@nestjs/common';
+import { Body, Controller, HttpException, Logger, Post } from '@nestjs/common';
 import { ErrorResponseDto } from 'src/dto/errorResponse.dto';
 import { ResponseDto } from 'src/dto/response.dto';
 import { ClientService } from './client.service';
@@ -14,9 +14,9 @@ export class ClientController {
   @Post()
   async registerClient(
     @Body() body: RegisterClientDTO,
-  ): Promise<string | ResponseDto<ClientDto> | ErrorResponseDto> {
+  ): Promise<string | ResponseDto<ClientDto> | HttpException> {
     this.logger.debug('CLIENT::CONTROLLER::REGISTER::INIT');
-    const response: string | ResponseDto<ClientDto> | ErrorResponseDto =
+    const response: string | ResponseDto<ClientDto> | HttpException =
       await this.clientService.registerClient(body);
     this.logger.debug('CLIENT::CONTROLLER::REGISTER::FINISH');
     return response;

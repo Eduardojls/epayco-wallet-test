@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Wallet } from 'src/entities/wallet.entity';
 import { ResponseBuilder } from 'src/utils/buildResponse';
@@ -20,10 +20,8 @@ import { CheckBalanceDto } from './dto/checkBalance.dto';
 
 @Injectable()
 export class WalletService {
-
   private readonly logger: Logger = new Logger('ClientService');
   private readonly responseBuilder: ResponseBuilder = new ResponseBuilder();
-
 
   constructor(
     @InjectRepository(Wallet)
@@ -40,7 +38,7 @@ export class WalletService {
 
   async addFunds(
     addFundsDto: AddFundsDto,
-  ): Promise<ResponseDto<WalletDto> | ErrorResponseDto> {
+  ): Promise<ResponseDto<WalletDto> | HttpException> {
     try {
       // Find wallet by querying by the client's credentials
       const wallet = await this.walletRepository.findOne({
@@ -53,10 +51,7 @@ export class WalletService {
         relations: ['client'],
       });
       if (!wallet) {
-        return this.responseBuilder.buildErrorResponse(
-          HttpStatus.NOT_FOUND,
-          'Wallet not found',
-        );
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
 
       // Add funds once the wallet  and the client are found.
@@ -96,13 +91,8 @@ export class WalletService {
       );
     } catch (error) {
       this.logger.error(`WALLET_SERVICE::REGISTER_CLIENT::ERROR::${error}`);
-      return this.responseBuilder.buildErrorResponse(
-        HttpStatus.BAD_REQUEST,
-        'Error adding funds',
-      );
+      return new HttpException('Error adding funds', HttpStatus.BAD_REQUEST);
     }
-
-    
   }
 
   async registerPurchase(body: RegisterPurchaseDto) {
@@ -117,18 +107,12 @@ export class WalletService {
         relations: ['client'],
       });
       if (!wallet) {
-        return this.responseBuilder.buildErrorResponse(
-          HttpStatus.NOT_FOUND,
-          'Wallet not found',
-        );
+        throw new HttpException('Not Found', HttpStatus.NOT_FOUND);
       }
 
       // Check if the wallet has enough funds
       if (wallet.balance < body.amount) {
-        return this.responseBuilder.buildErrorResponse(
-          HttpStatus.BAD_REQUEST,
-          'Insufficient balance',
-        );
+        throw new HttpException('Insufficient balance', HttpStatus.BAD_REQUEST);
       }
 
       // generate token and session ID
@@ -180,9 +164,9 @@ export class WalletService {
       );
     } catch (error) {
       this.logger.error(`WALLET_SERVICE::REGISTER_CLIENT::ERROR::${error}`);
-      return this.responseBuilder.buildErrorResponse(
-        HttpStatus.BAD_REQUEST,
+      throw new HttpException(
         'Error registering purchase',
+        HttpStatus.BAD_REQUEST,
       );
     }
   }
@@ -209,9 +193,9 @@ export class WalletService {
 
       // Validate if token and session are valid
       if (!session || body.token !== session.token) {
-        return this.responseBuilder.buildErrorResponse(
+        throw new HttpException(
+          'Wallet not found, Please verify your session and token are correct',
           HttpStatus.NOT_FOUND,
-          'Wallet not found. Please verify your session and token are correct',
         );
       }
 
@@ -225,10 +209,7 @@ export class WalletService {
         relations: ['client'],
       });
       if (!wallet) {
-        return this.responseBuilder.buildErrorResponse(
-          HttpStatus.NOT_FOUND,
-          'Wallet not found',
-        );
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
 
       this.logger.log('SESSION', wallet);
@@ -297,16 +278,16 @@ export class WalletService {
       );
     } catch (err) {
       this.logger.error(`WALLET_SERVICE::CONFIRM_PURCHASE::ERROR::${err}`);
-      return this.responseBuilder.buildErrorResponse(
-        HttpStatus.INTERNAL_SERVER_ERROR,
+      throw new HttpException(
         'Error confirming purchase',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
-  
+
   async checkBalance(
     body: CheckBalanceDto,
-  ): Promise<ResponseDto<{ balance: number }> | ErrorResponseDto> {
+  ): Promise<ResponseDto<{ balance: number }> | HttpException> {
     try {
       this.logger.error(`WALLET_SERVICE::CHECK_BALANCE::START`);
       const wallet = await this.walletRepository.findOneBy({
@@ -316,9 +297,9 @@ export class WalletService {
         },
       });
       if (!wallet) {
-        return this.responseBuilder.buildErrorResponse(
-          HttpStatus.NOT_FOUND,
+        return new HttpException(
           'Wallet not found. Please check the phone and document number.',
+          HttpStatus.NOT_FOUND,
         );
       }
 
@@ -328,9 +309,9 @@ export class WalletService {
       );
     } catch (error) {
       this.logger.error(`WALLET_SERVICE::CHECK_BALANCE::ERROR::${error}`);
-      return this.responseBuilder.buildErrorResponse(
+      return new HttpException(
+        'Error adding funds. Contact support',
         HttpStatus.BAD_REQUEST,
-        'Error adding funds',
       );
     }
   }
